@@ -1,0 +1,51 @@
+---
+######################
+## Install Packages ##
+######################
+
+- name: Get the package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+# In previous versions Ubuntu (=<18.04), systemd-timesyncd package is installed by default.
+- name: Install package - systemd-timesyncd
+  ansible.builtin.apt:
+    pkg:
+    - systemd-timesyncd
+    state: present
+  when:
+  - ansible_distribution == 'Ubuntu'
+  - ansible_distribution_version >= '22.04'  
+
+################
+## Setup NTP  ##
+################
+
+- name: Disable systemd-timesyncd
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    state: stopped
+    enabled: false
+
+- name: Replace config file with ntp-servers.net
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: 0644
+    owner: root
+    group: root
+  loop:
+    - { src: 'files/config/timesyncd.conf', dest: '/etc/systemd/' }
+
+- name: Enable systemd-timesyncd
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    state: started
+    enabled: true
+
+- name: Set: timedatectl set-ntp on 
+  shell: timedatectl set-ntp on
+
+# Here you can change the timezone
+- name: Set: timedatectl set Europe/Moscow timezone
+  shell: timedatectl set-timezone Europe/Moscow
